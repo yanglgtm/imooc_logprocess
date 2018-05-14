@@ -1,21 +1,21 @@
 package main
 
 import (
-	"strings"
-	"fmt"
-	"time"
-	"os"
 	"bufio"
-	"io"
-	"regexp"
-	"log"
-	"strconv"
-	"net/url"
+	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"net/url"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/influxdata/influxdb/client/v2"
-	"github.com/gin-gonic/gin/json"
 )
 
 type Reader interface {
@@ -27,9 +27,9 @@ type Writer interface {
 }
 
 type LogProcess struct {
-	rc chan []byte
-	wc chan *Message
-	read Reader
+	rc    chan []byte
+	wc    chan *Message
+	read  Reader
 	write Writer
 }
 
@@ -50,25 +50,25 @@ type Message struct {
 
 // 系统状态监控
 type SystemInfo struct {
-	HandleLine   int       `json:"handleLine"`   // 总处理日志行数
-	Tps          float64   `json:"tps"`          // 系统吞出量
-	ReadChanLen  int       `json:"readChanLen"`  // read channel 长度
-	WriteChanLen int       `json:"writeChanLen"` // write channel 长度
-	RunTime      string    `json:"runTime"`      // 运行总时间
-	ErrNum       int       `json:"errNum"`       // 错误数
+	HandleLine   int     `json:"handleLine"`   // 总处理日志行数
+	Tps          float64 `json:"tps"`          // 系统吞出量
+	ReadChanLen  int     `json:"readChanLen"`  // read channel 长度
+	WriteChanLen int     `json:"writeChanLen"` // write channel 长度
+	RunTime      string  `json:"runTime"`      // 运行总时间
+	ErrNum       int     `json:"errNum"`       // 错误数
 }
 
 const (
 	TypeHandleLine = 0
-	TypeErrNum = 1
+	TypeErrNum     = 1
 )
 
 var TypeMonitorChan = make(chan int, 200)
 
 type Monitor struct {
 	startTime time.Time
-	data SystemInfo
-	tpsSli []int
+	data      SystemInfo
+	tpsSli    []int
 }
 
 func (m *Monitor) start(lp *LogProcess) {
@@ -168,8 +168,8 @@ func (w *WriteToInfluxDB) Write(wc chan *Message) {
 		// Fields: UpstreamTime, RequestTime, BytesSent
 		fields := map[string]interface{}{
 			"UpstreamTime": v.UpstreamTime,
-			"RequestTime": v.RequestTime,
-			"BytesSent":   v.BytesSent,
+			"RequestTime":  v.RequestTime,
+			"BytesSent":    v.BytesSent,
 		}
 
 		pt, err := client.NewPoint("nginx_log", tags, fields, v.TimeLocal)
@@ -261,24 +261,24 @@ func main() {
 	}
 
 	lp := &LogProcess{
-		rc: make(chan []byte, 200),
-		wc: make(chan *Message, 200),
-		read: r,
+		rc:    make(chan []byte, 200),
+		wc:    make(chan *Message, 200),
+		read:  r,
 		write: w,
 	}
 
 	go lp.read.Read(lp.rc)
-	for i := 0; i < 2 ; i++  {
+	for i := 0; i < 2; i++ {
 		go lp.Process()
 	}
 
-	for i := 0; i < 4 ; i++ {
+	for i := 0; i < 4; i++ {
 		go lp.write.Write(lp.wc)
 	}
 
 	m := &Monitor{
 		startTime: time.Now(),
-		data: SystemInfo{},
+		data:      SystemInfo{},
 	}
 	m.start(lp)
 }
